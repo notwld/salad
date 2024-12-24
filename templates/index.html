@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .file-item:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- <div class="h-screen flex justify-center items-center">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px;">
+                        <h1 class="text-4xl font-bold text-black">File Manager</h1>
+        </div>
+    </div> -->
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold">File Manager</h1>
+            <button id="refresh" class="bg-blue-500 text-white px-4 py-2 rounded">Refresh</button>
+        </div>
+        <div class="flex flex-wrap" id="file-list">
+            <!-- File list will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        const fileListElement = document.getElementById("file-list");
+
+        function fetchFiles(path = "") {
+            axios.get(`http://localhost:3000?path=${path}`)
+                .then(response => {
+                    const files = response.data.files;
+                    const currentPath = response.data.current_path;
+                    fileListElement.innerHTML = '';  // Clear the existing files
+
+                    files.forEach(file => {
+                        const fileItem = document.createElement("div");
+                        fileItem.className = "file-item p-4 w-1/4 bg-white m-2 rounded shadow cursor-pointer";
+
+                        if (file.type === 'file') {
+                            fileItem.innerHTML = `
+                                <div class="flex justify-between items-center">
+                                    <span class="truncate">${file.name}</span>
+                                    <button class="text-red-500" onclick="deleteFile('${currentPath}', '${file.name}')">Delete</button>
+                                </div>
+                            `;
+                        } else {
+                            fileItem.innerHTML = `
+                                <div class="flex justify-between items-center">
+                                    <span class="truncate">${file.name}</span>
+                                </div>
+                            `;
+                        }
+                        
+                        fileItem.onclick = function() {
+                            if (file.type === 'directory') {
+                                fetchFiles(currentPath + '/' + file.name);
+                            }
+                        };
+
+                        fileListElement.appendChild(fileItem);
+                    });
+                })
+                .catch(error => console.error('Error fetching files:', error));
+        }
+
+        function deleteFile(path, filename) {
+            axios.post('http://localhost:3000/delete', { path, filename })
+                .then(response => {
+                    alert(response.data.message);
+                    fetchFiles();
+                })
+                .catch(error => alert('Error deleting file'));
+        }
+
+        document.getElementById("refresh").addEventListener("click", () => fetchFiles());
+
+        // Initial fetch
+        fetchFiles();
+    </script>
+</body>
+</html>
