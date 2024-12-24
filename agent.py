@@ -10,6 +10,7 @@ from flask_socketio import SocketIO, emit
 import asyncio
 import threading
 import argparse
+import subprocess
 
 from urllib.parse import unquote
 
@@ -61,6 +62,51 @@ def file_explorer():
 
     files = list_files(full_path)
     return jsonify({'files': files, 'current_path': path})
+import shutil
+import os
+import subprocess
+
+def run_code_serve_command(folder_path):
+    """
+    Run the 'code serve-web --port 8080' command in a specific directory,
+    parse its output, and extract the IP address from the Web UI URL.
+    """
+    try:
+        # Locate the 'code' executable
+        code_path = shutil.which("code")
+        if not code_path:
+            raise FileNotFoundError("The 'code' command is not found. Ensure it is installed and in the system PATH.")
+
+        # Change working directory
+        os.chdir(folder_path)
+        
+        # Run the 'code serve-web' command
+        result = subprocess.run(
+            [code_path, "serve-web", "--port", "5050"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return {"success": True, "url": "http://127.0.0.1:5050"}
+
+        return {"success": False, "error": "Unable to extract Web UI URL from command output"}
+    except Exception as e:
+        print(f"Error running 'code serve-web' command: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.route('/run_code_serve', methods=['GET'])
+def serve_web():
+    """
+    Endpoint to run the 'code serve-web' command and return the Web UI URL.
+    """
+    path = request.args.get('path', '')
+    print(path)
+    result = run_code_serve_command(path)
+    if result["success"]:
+        return jsonify({"message": "Command executed successfully", "url": result["url"]}), 200
+    else:
+        print(result["error"])
+        return jsonify({"error": result["error"]}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
